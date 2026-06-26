@@ -1,4 +1,4 @@
-use std::{fs::{self}, path::Path};
+use std::{fs, path::Path};
 use serde_json::Value;
 use steam_vdf_parser::{self, Obj, Vdf, parse_text};
 
@@ -109,4 +109,38 @@ pub async fn fetch_app_name(app_id: i32) -> Option<String> {
     let name = app_data.get("name").unwrap().as_str().unwrap();
 
     return Some(name.into());
+}
+
+fn gen_desktop_file_content(app_id: i32, app_name: &str, app_icon: &str) -> String {
+    return format!("\
+    [Desktop Entry]\n\
+    Name={}\n\
+    Comment=Play this game on Steam\n\
+    Exec=steam steam://rungameid/{}\n\
+    Icon={}\n\
+    Terminal=false\n\
+    Type=Application\n\
+    Categories=Game;",
+    app_name, app_id, app_icon);
+}
+
+pub fn create_desktop_file(app_id: &i32, app_name: &str, app_icon: &str) -> bool {
+    let file_content = gen_desktop_file_content(*app_id, app_name, app_icon);
+    let mut output_dir: String = crate::config::read_config("DESKTOP_OUTPUT_PATH");
+    match crate::files::resolve_home_dir(output_dir) {
+        Some(dir) => {output_dir = dir;}
+        None => {eprintln!("Error resolving home directory! Try to use absolute path."); return false;}
+    }
+    let file_path_string: String = format!("{}/steam_gen_{}.desktop", output_dir, *app_id);
+    if Path::new(&file_path_string).exists() {
+        return true;
+    }
+    match fs::write(file_path_string, file_content) {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Error writing desktop file: {}", e);
+            return false;
+        }
+    }
+    return true;
 }

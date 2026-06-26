@@ -15,7 +15,7 @@ fn main() {
     files::create_storage_if_not_exists();
     println!("Installed Apps:");
     for app_id in apps {
-        let app_icon : String = steam::get_icon_path(&steam_path, app_id).unwrap_or("Icon not found".into());
+        let cached_app_icon : String = steam::get_icon_path(&steam_path, app_id).unwrap_or("Icon not found".into());
         let app_name: String = trpl::block_on(async {
             match fetch_app_name(app_id).await {
                 Some(app_name) => app_name,
@@ -25,10 +25,16 @@ fn main() {
                 }
             }
         });
-        if app_icon == "Icon not found" || app_name == "Unknown" {
+        if cached_app_icon == "Icon not found" || app_name == "Unknown" {
             continue;
         }
-        println!("{} - {}", app_name, app_icon);
-        files::copy_img_to_storage(&app_icon, &app_id);
+        println!("{} - {}", app_name, cached_app_icon);
+        files::copy_img_to_storage(&cached_app_icon, &app_id);
+        let app_icon: String;
+        match files::get_icon_in_storage(&app_id) {
+            Some(icon_path) => {app_icon = icon_path;}
+            None => {eprintln!("Error getting icon path in storage!"); continue;}
+        }
+        steam::create_desktop_file(&app_id, &app_name, &app_icon);
     }    
 }
