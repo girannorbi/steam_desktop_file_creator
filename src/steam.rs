@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{fs::{self, read_to_string}, path::Path};
 use serde_json::Value;
 use steam_vdf_parser::{self, Obj, Vdf, parse_text};
 
@@ -132,7 +132,8 @@ pub fn create_desktop_file(app_id: &i32, app_name: &str, app_icon: &str) -> bool
         None => {eprintln!("Error resolving home directory! Try to use absolute path."); return false;}
     }
     let file_path_string: String = format!("{}/steam_gen_{}.desktop", output_dir, *app_id);
-    if Path::new(&file_path_string).exists() {
+    if desktop_file_is_in_storage(app_id) {
+        println!("Skipping app {} - desktop file exists...", app_id);
         return true;
     }
     match fs::write(file_path_string, file_content) {
@@ -143,4 +144,40 @@ pub fn create_desktop_file(app_id: &i32, app_name: &str, app_icon: &str) -> bool
         }
     }
     return true;
+}
+
+/// For some applications, steam can generate a working desktop file with the right icon and runner command.
+/// The function checks if any desktop file in directory runs the app_id.
+pub fn desktop_file_is_in_storage(app_id: &i32) -> bool {
+    let mut output_dir: String = crate::config::read_config("DESKTOP_OUTPUT_PATH");
+    match crate::files::resolve_home_dir(output_dir) {
+        Some(dir) => {output_dir = dir;}
+        None => {eprintln!("Error resolving home directory! Try to use absolute path."); return false;}
+    }
+    match Path::new(&output_dir).read_dir() {
+        Ok(file_entries) => {
+            for file in file_entries{
+                if file.is_err() { continue; }
+                let file = file.unwrap();
+                if file.path().is_dir() { continue; }
+                match read_to_string(file.path()) {
+                    Ok(str) => {
+                        if str.contains(format!("steam://rungameid/{}", app_id).as_str()) {
+                            return true;
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error reading desktop file, skipping: {}", e);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Error reading desktop storage directory: {}", e);
+            return false;
+        }
+    }
+
+
+    return false;
 }

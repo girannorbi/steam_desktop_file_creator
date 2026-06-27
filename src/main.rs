@@ -1,16 +1,21 @@
-use crate::steam::fetch_app_name;
+use std::path::Path;
+
+use crate::{config::{create_default_config_if_not_exists, print_invalid_config_message}, steam::fetch_app_name};
 
 mod config;
 mod steam;
 mod files;
 
 fn main() {
+    create_default_config_if_not_exists();
     let mut steam_path : String = config::read_config("STEAM_PATH");
     match files::resolve_home_dir(steam_path) {
         Some(dir) => {steam_path = dir;}
         None => {eprintln!("Error resolving home directory! Try to use absolute path."); return;}
     }
-    println!("STEAM_PATH: {}", steam_path);
+    if !Path::new(&steam_path).exists() {
+        print_invalid_config_message();
+    }
     let apps : Vec<i32> = steam::read_installed_app_ids(&steam_path);
     files::create_storage_if_not_exists();
     println!("Installed Apps:");
