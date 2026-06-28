@@ -11,9 +11,15 @@ pub fn create_default_config_if_not_exists() -> (){
     if Path::new(&config_path).exists() {
         return;
     }
-    let config_content = "\
+    let config_content: &str = "\
+    # Set Steam's root directory here\n\
     STEAM_PATH=~/.local/share/Steam\n\
+    \n\
+    # Set the directory where game's icons will be stored, if images get deleted here the dekstop files will be broken\n\
     ICON_OUTPUT_PATH=~/.local/share/steamapp_desktop_gen/icons/\n\
+    \n\
+    # Set the output directory where dekstop files will be generated.\n\
+    # If you set ~/.local/share/applications/ here, the installed games will instantly show up in your runner, and in supported Dekstop Environments.\n\
     DESKTOP_OUTPUT_PATH=~/.local/share/steamapp_desktop_gen/desktop/\n";
     match fs::write(config_path, config_content) {
         Ok(_) => {}

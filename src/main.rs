@@ -1,45 +1,62 @@
 use std::path::Path;
-
-use crate::{config::{create_default_config_if_not_exists, print_invalid_config_message}, steam::fetch_app_name};
-
 mod config;
 mod steam;
 mod files;
 
 fn main() {
-    create_default_config_if_not_exists();
+    config::create_default_config_if_not_exists();
+    files::create_storage_if_not_exists();
     let mut steam_path : String = config::read_config("STEAM_PATH");
     match files::resolve_home_dir(steam_path) {
         Some(dir) => {steam_path = dir;}
         None => {eprintln!("Error resolving home directory! Try to use absolute path."); return;}
     }
     if !Path::new(&steam_path).exists() {
-        print_invalid_config_message();
+        config::print_invalid_config_message();
     }
-    let apps : Vec<i32> = steam::read_installed_app_ids(&steam_path);
-    files::create_storage_if_not_exists();
-    println!("Installed Apps:");
-    for app_id in apps {
-        let cached_app_icon : String = steam::get_icon_path(&steam_path, app_id).unwrap_or("Icon not found".into());
-        let app_name: String = trpl::block_on(async {
-            match fetch_app_name(app_id).await {
-                Some(app_name) => app_name,
-                None => {
-                    println!("Failed to fetch app data for App ID: {}", app_id);
-                    "Unknown".into()
+    println!("STEAM_PATH: {}", steam_path);
+
+    let mut steam_apps: Vec<steam::SteamApp> = Vec::new();
+    let libraries: Vec<String> = steam::get_steam_libraries(&steam_path);
+    let mut manifests : Vec<String> = Vec::new();
+    for lib in libraries {
+        for manifest_path in steam::get_manifests_in_library(&lib).unwrap_or(Vec::new()) {
+            manifests.push(manifest_path);
+        }
+    }
+    for manifest_path in manifests {
+        let app_data = steam::get_steam_app_data(&manifest_path);
+        if app_data.is_none() { continue; }
+        steam_apps.push(app_data.unwrap());
+    }
+    for app in steam_apps.iter() {
+        println!("--- App: {} || {} ---", app.app_id, app.name);
+        if steam::desktop_file_is_in_storage(&app.app_id) { 
+            println!("Desktop file already exists, skipping...");
+            continue; 
+        }
+        let app_icon_path: String;
+        if files::get_icon_in_storage(&app.app_id).is_none() {
+            println!("Copying app icon to storage...");
+            let cached_app_icon_path: String;
+            match steam::get_icon_path(&steam_path, app.app_id) {
+                Some(path) => { cached_app_icon_path = path; }
+                None => { 
+                    eprintln!("Error getting icon path for App ID: {}", app.app_id);
+                    continue;
                 }
             }
-        });
-        if cached_app_icon == "Icon not found" || app_name == "Unknown" {
-            continue;
+            if !files::copy_img_to_storage(&cached_app_icon_path, &app.app_id) {
+                eprintln!("Error copying icon to storage for App ID: {}", app.app_id);
+                continue;
+            }
         }
-        println!("{} - {}", app_name, cached_app_icon);
-        files::copy_img_to_storage(&cached_app_icon, &app_id);
-        let app_icon: String;
-        match files::get_icon_in_storage(&app_id) {
-            Some(icon_path) => {app_icon = icon_path;}
-            None => {eprintln!("Error getting icon path in storage!"); continue;}
+        app_icon_path = files::get_icon_in_storage(&app.app_id).unwrap();
+        if !steam::create_desktop_file(&app.app_id, &app.name, &app_icon_path){
+            eprintln!("Error creating desktop file for App {}", app.app_id);
         }
-        steam::create_desktop_file(&app_id, &app_name, &app_icon);
-    }    
+    }
+    println!("Checking for broken desktop files...");
+    steam::check_for_broken_dekstop_files(steam_apps);
+    return;
 }
