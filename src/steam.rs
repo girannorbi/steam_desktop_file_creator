@@ -2,6 +2,8 @@ use std::{fs::{self, read_to_string}, path::{Path}};
 use steam_vdf_parser::{self, Obj, Vdf, parse_text};
 use regex::Regex;
 
+use crate::files;
+
 pub struct SteamApp {
     pub app_id: i32,
     pub name: String
@@ -254,7 +256,7 @@ pub fn check_for_broken_dekstop_files(installed_apps: Vec<SteamApp>) -> () {
                     }
                 }
                 if !contains {
-                    print!("Removing broken desktop file for uninstalled app {}", app_id);
+                    println!("Removing broken desktop file for uninstalled app {}", app_id);
                     match fs::remove_file(file.path()) {
                         Ok(_) => {}
                         Err(e) => {
@@ -262,6 +264,7 @@ pub fn check_for_broken_dekstop_files(installed_apps: Vec<SteamApp>) -> () {
                             eprintln!("Error: {}", e);
                         }
                     }
+                    files::remove_icon_from_storage(&app_id);
                 }
             }
         } 

@@ -61,7 +61,7 @@ pub fn copy_img_to_storage(icon_path: &str, app_id: &i32) -> bool {
     if !from.exists() || !from.is_file() {
         return false;
     }
-    let output_path_string: String = format!("{}/{}.png", output_dir, app_id);
+    let output_path_string: String = format!("{}/{}.jpg", output_dir, app_id);
     let to = Path::new(&output_path_string);
     if to.exists() {
         return true;
@@ -82,10 +82,31 @@ pub fn get_icon_in_storage(app_id: &i32) -> Option<String> {
     if !storage_path.exists() || !storage_path.is_dir() {
         return None;
     }
-    let icon_path_string: String = format!("{}{}.png", storage_path_str, app_id);
+    let icon_path_string: String = format!("{}{}.jpg", storage_path_str, app_id);
     let icon_path : &Path = Path::new(&icon_path_string);
     if !icon_path.exists() || !icon_path.is_file() {
         return None;
     }
     return Some(icon_path_string);
+}
+
+pub fn remove_icon_from_storage(app_id: &i32) -> bool{
+    let mut storage_path_str: String = config::read_config("ICON_OUTPUT_PATH");
+    match resolve_home_dir(storage_path_str) {
+        Some(dir) => {storage_path_str = dir;}
+        None => {eprintln!("Error resolving home directory! Try to use absolute path."); return false;}
+    }
+    let storage_path : &Path = Path::new(&storage_path_str);
+    if !storage_path.exists() || !storage_path.is_dir() {
+        return false;
+    }
+    let icon_path_string: String = format!("{}{}.jpg", storage_path_str, app_id);
+    let icon_path : &Path = Path::new(&icon_path_string);
+    if !icon_path.exists() || !icon_path.is_file() {
+        return false;
+    }
+    match fs::remove_file(icon_path) {
+        Ok(_) => {return true;}
+        Err(e) => {eprintln!("Error removing icon file: {}", e); return false;}
+    }
 }
