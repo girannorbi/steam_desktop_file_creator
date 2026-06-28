@@ -9,7 +9,7 @@ pub struct SteamApp {
     pub name: String
 }
 
-pub fn get_steam_libraries(steam_path: &str) -> Vec<String> {
+fn get_steam_libraries(steam_path: &str) -> Vec<String> {
     let mut libraries: Vec<String> = Vec::new();
     let path_string : String = format!("{}/config/libraryfolders.vdf", steam_path);
     let file_content: String;
@@ -42,7 +42,7 @@ pub fn get_steam_libraries(steam_path: &str) -> Vec<String> {
     return libraries;
 }
 
-pub fn get_manifests_in_library(library_path: &str) -> Option<Vec<String>> {
+fn get_manifests_in_library(library_path: &str) -> Option<Vec<String>> {
     let mut manifests: Vec<String> = Vec::new();
     let path_string : String = format!("{}/steamapps", library_path);
     let path = Path::new(&path_string);
@@ -72,7 +72,7 @@ pub fn get_manifests_in_library(library_path: &str) -> Option<Vec<String>> {
     return Some(manifests);
 }
 
-pub fn get_steam_app_data(manifest_path: &str) -> Option<SteamApp> {
+fn get_steam_app_data(manifest_path: &str) -> Option<SteamApp> {
     let path : &Path = Path::new(manifest_path);
     if !path.is_file() {
         eprintln!("Given manifest file path does not exists!");
@@ -120,6 +120,23 @@ pub fn get_steam_app_data(manifest_path: &str) -> Option<SteamApp> {
         return None;
     }
     return Some(SteamApp { app_id: app_id, name: app_name });
+}
+
+pub fn get_all_steam_apps(steam_path: &str) -> Vec<SteamApp> {
+    let mut steam_apps: Vec<SteamApp> = Vec::new();
+    let libraries: Vec<String> = get_steam_libraries(&steam_path);
+    let mut manifests : Vec<String> = Vec::new();
+    for lib in libraries {
+        for manifest_path in get_manifests_in_library(&lib).unwrap_or(Vec::new()) {
+            manifests.push(manifest_path);
+        }
+    }
+    for manifest_path in manifests {
+        let app_data = get_steam_app_data(&manifest_path);
+        if app_data.is_none() { continue; }
+        steam_apps.push(app_data.unwrap());
+    }
+    return steam_apps;
 }
 
 pub fn get_icon_path(steam_path : &str, app_id: i32) -> Option<String> {

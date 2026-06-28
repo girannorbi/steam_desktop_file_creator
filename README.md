@@ -17,7 +17,7 @@ Removes any uninstalled steamapp's desktop file from the configured path if its 
 - Move the generated .desktop files to the desired location
 
 ## The program can run as an automated script without user input, e.g: on login.
-## If it's run as a service, setting the DESKTOP_OUTPUT_PATH to ~/.local/share/applications/ is recommended.
+If it's run as a service, setting the DESKTOP_OUTPUT_PATH to ~/.local/share/applications/ is recommended.
 
 # Caveats
 - The dekstop file removal functionality only works if the desktop files stay in the configured path.
